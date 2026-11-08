@@ -21,7 +21,7 @@ app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "seedr_webapp_super_secret_se
 
 MASTER_EMAIL = os.getenv("SEEDR_EMAIL", "")
 MASTER_PASSWORD = os.getenv("SEEDR_PASSWORD", "")
-MASTER_PASSCODE = os.getenv("MASTER_PASSCODE", "0001")
+MASTER_PASSCODE = os.getenv("MASTER_PASSCODE", "9595")
 
 # Global client cache
 master_client: Optional[SeedrClient] = None
