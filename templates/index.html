@@ -801,46 +801,55 @@
         }
     }
 
+    function safeEscape(str) {
+        if (!str) return '';
+        return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
     function renderItems(folders, files) {
         const listEl = document.getElementById('items-list');
-        if (folders.length === 0 && files.length === 0) {
+        if ((!folders || folders.length === 0) && (!files || files.length === 0)) {
             listEl.innerHTML = `<li class="empty-state">No files or folders yet. Paste a magnet link above to fetch.</li>`;
             return;
         }
 
         let html = '';
-        for (const fo of folders) {
+        for (const fo of (folders || [])) {
+            const folderName = fo.name || fo.path || 'Folder';
+            const escapedName = safeEscape(folderName);
             html += `
             <li class="item-row">
                 <div class="item-left">
                     <span class="item-icon">📁</span>
-                    <span class="item-name folder-click" onclick="loadFolder(${fo.id}, '${fo.path.replace(/'/g, "\\'")}')">${fo.path}</span>
-                    <span class="item-size">${fo.size_formatted}</span>
+                    <span class="item-name folder-click" onclick="loadFolder(${fo.id}, '${escapedName}')">${folderName}</span>
+                    <span class="item-size">${fo.size_formatted || ''}</span>
                 </div>
                 <div class="item-actions">
-                    <button class="btn btn-sm btn-warm" onclick="downloadFolderZip(${fo.id}, '${fo.path.replace(/'/g, "\\'")}')">
+                    <button class="btn btn-sm btn-warm" onclick="downloadFolderZip(${fo.id}, '${escapedName}')">
                         📦 Download ZIP
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteItem('folder', ${fo.id}, '${fo.path.replace(/'/g, "\\'")}')">
+                    <button class="btn btn-sm btn-danger" onclick="deleteItem('folder', ${fo.id}, '${escapedName}')">
                         🗑️
                     </button>
                 </div>
             </li>`;
         }
 
-        for (const fi of files) {
-            const isVideo = fi.is_video || fi.name.match(/\.(mkv|mp4|webm|avi|mov)$/i);
+        for (const fi of (files || [])) {
+            const fileName = fi.name || 'File';
+            const escapedFileName = safeEscape(fileName);
+            const isVideo = fi.is_video || fileName.match(/\.(mkv|mp4|webm|avi|mov)$/i);
             html += `
             <li class="item-row">
                 <div class="item-left">
                     <span class="item-icon">${isVideo ? '🎬' : '📄'}</span>
-                    <span class="item-name">${fi.name}</span>
-                    <span class="item-size">${fi.size_formatted}</span>
+                    <span class="item-name">${fileName}</span>
+                    <span class="item-size">${fi.size_formatted || ''}</span>
                 </div>
                 <div class="item-actions">
                     ${isVideo ? `<button class="btn btn-sm btn-outline" onclick="openVideoStream(${fi.id})">▶️ Stream</button>` : ''}
                     <button class="btn btn-sm btn-outline" onclick="downloadFile(${fi.id})">⬇️ Download</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteItem('file', ${fi.id}, '${fi.name.replace(/'/g, "\\'")}')">🗑️</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteItem('file', ${fi.id}, '${escapedFileName}')">🗑️</button>
                 </div>
             </li>`;
         }

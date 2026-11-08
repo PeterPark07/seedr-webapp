@@ -1,7 +1,8 @@
 import os
 import time
+import hmac
 from functools import wraps
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from flask import Flask, render_template, request, jsonify, redirect, url_for, session
 from dotenv import load_dotenv
 
@@ -74,6 +75,49 @@ def login_required(f):
 
 app.jinja_env.filters['format_bytes'] = format_bytes
 
+# --- Brute Force Protection ---
+MAX_FAILED_ATTEMPTS = 5
+LOCKOUT_SECONDS = 900  # 15 minutes
+failed_attempts: Dict[str, Dict[str, Any]] = {}
+
+def get_client_ip() -> str:
+    """Extract real client IP even behind Render / reverse proxies."""
+    if request.headers.get("X-Forwarded-For"):
+        return request.headers.get("X-Forwarded-For").split(",")[0].strip()
+    return request.remote_addr or "127.0.0.1"
+
+def check_rate_limit(ip: str) -> Optional[int]:
+    """Returns remaining lockout seconds if IP is locked out, else None."""
+    record = failed_attempts.get(ip)
+    if not record:
+        return None
+    lockout_until = record.get("lockout_until", 0)
+    now = time.time()
+    if now < lockout_until:
+        return int(lockout_until - now)
+    if lockout_until > 0 and now >= lockout_until:
+        del failed_attempts[ip]
+    return None
+
+def record_failed_attempt(ip: str) -> int:
+    """Records a failed login attempt and applies progressive delay / lockout."""
+    now = time.time()
+    record = failed_attempts.setdefault(ip, {"count": 0, "lockout_until": 0})
+    record["count"] += 1
+
+    if record["count"] >= MAX_FAILED_ATTEMPTS:
+        record["lockout_until"] = now + LOCKOUT_SECONDS
+        return 0
+
+    # Artificial delay to choke automated script fuzzers
+    time.sleep(1.0)
+    return MAX_FAILED_ATTEMPTS - record["count"]
+
+def reset_failed_attempts(ip: str):
+    """Resets failed attempt counter on successful login."""
+    if ip in failed_attempts:
+        del failed_attempts[ip]
+
 # --- Authentication Routes ---
 
 @app.route("/login")
@@ -84,10 +128,19 @@ def login_page():
 
 @app.route("/auth/passcode", methods=["POST"])
 def auth_passcode():
+    ip = get_client_ip()
+    locked_for = check_rate_limit(ip)
+    if locked_for:
+        return jsonify({
+            "success": False,
+            "error": f"Too many failed attempts. Locked out for {locked_for // 60 + 1} more minute(s)."
+        }), 429
+
     data = request.get_json(silent=True) or {}
     passcode = str(data.get("passcode", "")).strip()
 
-    if passcode == MASTER_PASSCODE:
+    if hmac.compare_digest(passcode, MASTER_PASSCODE):
+        reset_failed_attempts(ip)
         try:
             client = get_master_client()
             if not client:
@@ -101,10 +154,28 @@ def auth_passcode():
         session["user_label"] = "Guest Passcode Access (Shared Cloud)"
         return jsonify({"success": True})
 
-    return jsonify({"success": False, "error": "Invalid passcode"}), 401
+    remaining = record_failed_attempt(ip)
+    if remaining == 0:
+        return jsonify({
+            "success": False,
+            "error": "Too many failed attempts. You have been locked out for 15 minutes."
+        }), 429
+
+    return jsonify({
+        "success": False,
+        "error": f"Invalid passcode. ({remaining} attempt(s) remaining before 15-minute lockout)"
+    }), 401
 
 @app.route("/auth/login", methods=["POST"])
 def auth_login():
+    ip = get_client_ip()
+    locked_for = check_rate_limit(ip)
+    if locked_for:
+        return jsonify({
+            "success": False,
+            "error": f"Too many failed attempts. Locked out for {locked_for // 60 + 1} more minute(s)."
+        }), 429
+
     data = request.get_json(silent=True) or {}
     email = data.get("email", "").strip()
     password = data.get("password", "")
@@ -116,6 +187,7 @@ def auth_login():
         # Validate credentials with SeedrClient
         client = SeedrClient.from_password(email, password)
         user_clients[email] = client
+        reset_failed_attempts(ip)
 
         session.clear()
         session["logged_in"] = True
@@ -125,7 +197,16 @@ def auth_login():
         session["user_label"] = email
         return jsonify({"success": True})
     except AuthenticationError as e:
-        return jsonify({"success": False, "error": str(e)}), 401
+        remaining = record_failed_attempt(ip)
+        if remaining == 0:
+            return jsonify({
+                "success": False,
+                "error": "Too many failed attempts. You have been locked out for 15 minutes."
+            }), 429
+        return jsonify({
+            "success": False,
+            "error": f"Invalid Seedr credentials ({remaining} attempt(s) remaining before 15-minute lockout)"
+        }), 401
     except Exception as e:
         return jsonify({"success": False, "error": f"Login failed: {e}"}), 500
 
@@ -181,11 +262,12 @@ def get_folder(folder_id):
         return jsonify({
             "success": True,
             "id": folder.id,
-            "path": folder.path,
+            "path": folder.path or "Home",
             "folders": [
                 {
                     "id": f.id,
                     "name": f.name,
+                    "path": f.name,
                     "size": f.size,
                     "size_formatted": f.size_formatted,
                     "last_update": f.last_update
