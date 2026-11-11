@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Seedr Torrent Cloud</title>
+    <title>Login - Personal Torrent Cloud</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -18,12 +18,10 @@
             --text-muted: #64748b;
             --primary: #4f46e5;
             --primary-hover: #4338ca;
-            --primary-light: #eef2ff;
             --danger: #dc2626;
             --danger-bg: #fef2f2;
             --radius-sm: 8px;
             --radius-md: 14px;
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
             --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08);
         }
 
@@ -51,83 +49,58 @@
             border-radius: var(--radius-md);
             box-shadow: var(--shadow-lg);
             width: 100%;
-            max-width: 440px;
-            padding: 2.25rem 2rem;
+            max-width: 420px;
+            padding: 2.5rem 2rem;
         }
 
         .brand-header {
             text-align: center;
-            margin-bottom: 1.75rem;
+            margin-bottom: 2rem;
         }
 
         .brand-icon {
-            width: 44px;
-            height: 44px;
+            width: 48px;
+            height: 48px;
             background: var(--primary);
             color: #ffffff;
             border-radius: var(--radius-sm);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.35rem;
-            margin-bottom: 0.75rem;
-            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+            font-size: 1.5rem;
+            margin-bottom: 0.85rem;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
         }
 
         .brand-title {
-            font-size: 1.25rem;
+            font-size: 1.35rem;
             font-weight: 700;
             color: var(--text-heading);
             letter-spacing: -0.02em;
         }
 
         .brand-sub {
-            font-size: 0.82rem;
+            font-size: 0.84rem;
             color: var(--text-muted);
-            margin-top: 0.25rem;
+            margin-top: 0.35rem;
         }
 
-        /* Tabs */
-        .tabs {
-            display: flex;
-            background: var(--bg-base);
-            border-radius: var(--radius-sm);
-            padding: 0.25rem;
-            margin-bottom: 1.5rem;
-            gap: 0.25rem;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 0.55rem 0.75rem;
-            border: none;
-            background: transparent;
-            font-family: inherit;
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .tab-btn.active {
-            background: var(--surface);
-            color: var(--primary);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        }
-
-        /* Form Controls */
         .form-group {
-            margin-bottom: 1.15rem;
+            margin-bottom: 1.25rem;
         }
 
         label {
             display: block;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: 600;
             color: var(--text-heading);
-            margin-bottom: 0.4rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .input-field {
@@ -135,12 +108,12 @@
             background: #f8fafc;
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
-            padding: 0.65rem 0.85rem;
-            font-size: 0.88rem;
+            padding: 0.75rem 2.75rem 0.75rem 0.95rem;
+            font-size: 0.95rem;
             font-family: inherit;
             color: var(--text-heading);
             outline: none;
-            transition: all 0.15s;
+            transition: all 0.15s ease;
         }
 
         .input-field:focus {
@@ -149,28 +122,30 @@
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
         }
 
-        .passcode-input {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.25rem;
-            letter-spacing: 0.35em;
-            text-align: center;
-            font-weight: 700;
-            padding: 0.75rem;
-        }
-
-        .disclaimer-box {
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 0.75rem 0.9rem;
-            font-size: 0.75rem;
+        .toggle-password {
+            position: absolute;
+            right: 0.85rem;
+            background: none;
+            border: none;
             color: var(--text-muted);
-            line-height: 1.45;
-            margin-bottom: 1.25rem;
+            cursor: pointer;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem;
+            transition: color 0.15s;
         }
 
-        .disclaimer-box strong {
+        .toggle-password:hover {
             color: var(--text-heading);
+        }
+
+        .helper-text {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            line-height: 1.4;
         }
 
         .btn-submit {
@@ -179,26 +154,37 @@
             color: #ffffff;
             border: none;
             border-radius: var(--radius-sm);
-            padding: 0.75rem 1rem;
-            font-size: 0.88rem;
+            padding: 0.8rem 1rem;
+            font-size: 0.92rem;
             font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.15s;
+            transition: background-color 0.15s, transform 0.05s;
+            margin-top: 0.5rem;
         }
 
         .btn-submit:hover {
             background: var(--primary-hover);
         }
 
+        .btn-submit:active {
+            transform: scale(0.99);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
         .alert-error {
             background: var(--danger-bg);
             border: 1px solid rgba(220, 38, 38, 0.25);
             color: var(--danger);
-            padding: 0.65rem 0.85rem;
+            padding: 0.7rem 0.9rem;
             border-radius: var(--radius-sm);
             font-size: 0.82rem;
-            margin-bottom: 1.15rem;
+            margin-bottom: 1.25rem;
             display: none;
+            line-height: 1.45;
         }
     </style>
 </head>
@@ -207,66 +193,48 @@
 <div class="login-card">
     <div class="brand-header">
         <div class="brand-icon">⚡</div>
-        <h1 class="brand-title">Seedr Minimal Cloud</h1>
-        <p class="brand-sub">Access your personal torrent & cloud storage</p>
-    </div>
-
-    <!-- Mode Selector Tabs -->
-    <div class="tabs">
-        <button type="button" class="tab-btn active" id="tab-passcode" onclick="switchTab('passcode')">🔑 Access Code</button>
-        <button type="button" class="tab-btn" id="tab-seedr" onclick="switchTab('seedr')">👤 Seedr Account</button>
+        <h1 class="brand-title">Personal Torrent Cloud</h1>
+        <p class="brand-sub">Private Seedr storage & streaming hub</p>
     </div>
 
     <div id="error-box" class="alert-error"></div>
 
-    <!-- Form 1: Access Passcode (0001) -->
-    <form id="form-passcode" onsubmit="submitPasscode(event)">
+    <form id="form-login" onsubmit="submitLogin(event)">
         <div class="form-group">
-            <label for="passcode-input">Host Access Passcode</label>
-            <input type="text" id="passcode-input" class="input-field passcode-input" placeholder="••••" maxlength="8" autocomplete="off" autofocus>
+            <label for="passcode-input">Master Passcode</label>
+            <div class="input-wrapper">
+                <input 
+                    type="password" 
+                    id="passcode-input" 
+                    class="input-field" 
+                    placeholder="Enter your master passcode" 
+                    autocomplete="current-password" 
+                    autofocus
+                    required
+                >
+                <button type="button" class="toggle-password" onclick="toggleVisibility()" title="Toggle visibility">
+                    <span id="eye-icon">👁️</span>
+                </button>
+            </div>
+            <p class="helper-text">
+                Protected with rate limiting and automated brute-force lockout.
+            </p>
         </div>
-        <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:1.25rem; text-align:center;">
-            Have an access code from the host? Enter it above to access the shared cloud without exposing host credentials.
-        </p>
-        <button type="submit" class="btn-submit" id="btn-passcode">Unlock Cloud</button>
-    </form>
 
-    <!-- Form 2: Personal Seedr Credentials -->
-    <form id="form-seedr" onsubmit="submitSeedrLogin(event)" style="display:none;">
-        <div class="disclaimer-box">
-            🛡️ <strong>Seedr Disclaimer:</strong> Enter your own <em>Seedr.cc</em> account credentials. Your credentials establish a secure direct session with Seedr and are never saved on our server database.
-        </div>
-        <div class="form-group">
-            <label for="email-input">Seedr Account Email</label>
-            <input type="email" id="email-input" class="input-field" placeholder="your_email@example.com" autocomplete="username">
-        </div>
-        <div class="form-group">
-            <label for="password-input">Seedr Password</label>
-            <input type="password" id="password-input" class="input-field" placeholder="Your password" autocomplete="current-password">
-        </div>
-        <button type="submit" class="btn-submit" id="btn-seedr">Log in with Seedr</button>
+        <button type="submit" class="btn-submit" id="btn-submit">Unlock Cloud</button>
     </form>
 </div>
 
 <script>
-    let activeTab = 'passcode';
-
-    function switchTab(tab) {
-        activeTab = tab;
-        document.getElementById('error-box').style.display = 'none';
-
-        if (tab === 'passcode') {
-            document.getElementById('tab-passcode').classList.add('active');
-            document.getElementById('tab-seedr').classList.remove('active');
-            document.getElementById('form-passcode').style.display = 'block';
-            document.getElementById('form-seedr').style.display = 'none';
-            document.getElementById('passcode-input').focus();
+    function toggleVisibility() {
+        const input = document.getElementById('passcode-input');
+        const icon = document.getElementById('eye-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.innerText = '🙈';
         } else {
-            document.getElementById('tab-seedr').classList.add('active');
-            document.getElementById('tab-passcode').classList.remove('active');
-            document.getElementById('form-seedr').style.display = 'block';
-            document.getElementById('form-passcode').style.display = 'none';
-            document.getElementById('email-input').focus();
+            input.type = 'password';
+            icon.innerText = '👁️';
         }
     }
 
@@ -276,20 +244,20 @@
         box.style.display = 'block';
     }
 
-    async function submitPasscode(e) {
+    async function submitLogin(e) {
         e.preventDefault();
         const code = document.getElementById('passcode-input').value.trim();
         if (!code) {
-            showError("Please enter an access passcode.");
+            showError("Please enter your master passcode.");
             return;
         }
 
-        const btn = document.getElementById('btn-passcode');
+        const btn = document.getElementById('btn-submit');
         btn.disabled = true;
         btn.innerText = "Verifying...";
 
         try {
-            const res = await fetch('/auth/passcode', {
+            const res = await fetch('/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ passcode: code })
@@ -298,46 +266,14 @@
             if (data.success) {
                 window.location.href = '/';
             } else {
-                showError(data.error || "Invalid passcode.");
+                showError(data.error || "Incorrect passcode.");
+                document.getElementById('passcode-input').select();
             }
         } catch (err) {
             showError("Network error: " + err);
         } finally {
             btn.disabled = false;
             btn.innerText = "Unlock Cloud";
-        }
-    }
-
-    async function submitSeedrLogin(e) {
-        e.preventDefault();
-        const email = document.getElementById('email-input').value.trim();
-        const password = document.getElementById('password-input').value;
-        if (!email || !password) {
-            showError("Please enter both Seedr email and password.");
-            return;
-        }
-
-        const btn = document.getElementById('btn-seedr');
-        btn.disabled = true;
-        btn.innerText = "Authenticating with Seedr...";
-
-        try {
-            const res = await fetch('/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email, password: password })
-            });
-            const data = await res.json();
-            if (data.success) {
-                window.location.href = '/';
-            } else {
-                showError(data.error || "Authentication failed. Check your Seedr credentials.");
-            }
-        } catch (err) {
-            showError("Network error: " + err);
-        } finally {
-            btn.disabled = false;
-            btn.innerText = "Log in with Seedr";
         }
     }
 </script>

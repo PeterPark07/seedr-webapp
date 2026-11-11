@@ -18,50 +18,29 @@ from seedr_py import (
 load_dotenv()
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "seedr_webapp_super_secret_session_key_2026")
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "seedr_personal_cloud_secret_key_2026")
 
-MASTER_EMAIL = os.getenv("SEEDR_EMAIL", "")
-MASTER_PASSWORD = os.getenv("SEEDR_PASSWORD", "")
-MASTER_PASSCODE = os.getenv("MASTER_PASSCODE", "9595")
+SEEDR_EMAIL = os.getenv("SEEDR_EMAIL", "")
+SEEDR_PASSWORD = os.getenv("SEEDR_PASSWORD", "")
+MASTER_PASSCODE = os.getenv("MASTER_PASSCODE", "skyfall-secret-pass-2026")
 
-# Global client cache
-master_client: Optional[SeedrClient] = None
-master_client_timestamp: float = 0
-user_clients: Dict[str, SeedrClient] = {}
+# Global Seedr client cache
+seedr_client: Optional[SeedrClient] = None
+seedr_client_timestamp: float = 0
 
-def get_master_client() -> Optional[SeedrClient]:
-    """Retrieves or refreshes the master host SeedrClient."""
-    global master_client, master_client_timestamp
-    if not MASTER_EMAIL or not MASTER_PASSWORD:
+def get_client() -> Optional[SeedrClient]:
+    """Retrieves or refreshes the personal SeedrClient instance."""
+    global seedr_client, seedr_client_timestamp
+    if not SEEDR_EMAIL or not SEEDR_PASSWORD:
         return None
 
-    # Refresh client every 3 hours
+    # Re-authenticate every 3 hours to ensure a fresh session
     now = time.time()
-    if master_client is None or (now - master_client_timestamp > 10800):
-        master_client = SeedrClient.from_password(MASTER_EMAIL, MASTER_PASSWORD)
-        master_client_timestamp = now
+    if seedr_client is None or (now - seedr_client_timestamp > 10800):
+        seedr_client = SeedrClient.from_password(SEEDR_EMAIL, SEEDR_PASSWORD)
+        seedr_client_timestamp = now
 
-    return master_client
-
-def get_current_client() -> Optional[SeedrClient]:
-    """Returns the authenticated SeedrClient for the active session."""
-    if not session.get("logged_in"):
-        return None
-
-    auth_type = session.get("auth_type")
-    if auth_type == "guest":
-        return get_master_client()
-
-    if auth_type == "user":
-        email = session.get("email")
-        password = session.get("password")
-        if not email or not password:
-            return None
-        if email not in user_clients:
-            user_clients[email] = SeedrClient.from_password(email, password)
-        return user_clients[email]
-
-    return None
+    return seedr_client
 
 def login_required(f):
     @wraps(f)
@@ -77,7 +56,7 @@ app.jinja_env.filters['format_bytes'] = format_bytes
 
 # --- Brute Force Protection ---
 MAX_FAILED_ATTEMPTS = 5
-LOCKOUT_SECONDS = 900  # 15 minutes
+LOCKOUT_SECONDS = 900  # 15 minutes lockout
 failed_attempts: Dict[str, Dict[str, Any]] = {}
 
 def get_client_ip() -> str:
@@ -100,7 +79,7 @@ def check_rate_limit(ip: str) -> Optional[int]:
     return None
 
 def record_failed_attempt(ip: str) -> int:
-    """Records a failed login attempt and applies progressive delay / lockout."""
+    """Records a failed login attempt and applies progressive delay and lockout."""
     now = time.time()
     record = failed_attempts.setdefault(ip, {"count": 0, "lockout_until": 0})
     record["count"] += 1
@@ -126,8 +105,9 @@ def login_page():
         return redirect(url_for("index"))
     return render_template("login.html")
 
+@app.route("/auth/login", methods=["POST"])
 @app.route("/auth/passcode", methods=["POST"])
-def auth_passcode():
+def auth_login():
     ip = get_client_ip()
     locked_for = check_rate_limit(ip)
     if locked_for:
@@ -137,21 +117,23 @@ def auth_passcode():
         }), 429
 
     data = request.get_json(silent=True) or {}
-    passcode = str(data.get("passcode", "")).strip()
+    passcode = str(data.get("passcode") or data.get("password") or "").strip()
+
+    if not passcode:
+        return jsonify({"success": False, "error": "Master passcode is required."}), 400
 
     if hmac.compare_digest(passcode, MASTER_PASSCODE):
         reset_failed_attempts(ip)
         try:
-            client = get_master_client()
+            client = get_client()
             if not client:
-                return jsonify({"success": False, "error": "Server host account not configured in .env"}), 500
+                return jsonify({"success": False, "error": "Seedr credentials not configured on server (.env)."}), 500
         except Exception as e:
-            return jsonify({"success": False, "error": f"Failed to connect host account: {e}"}), 500
+            return jsonify({"success": False, "error": f"Failed to connect to Seedr account: {e}"}), 500
 
         session.clear()
         session["logged_in"] = True
-        session["auth_type"] = "guest"
-        session["user_label"] = "Guest Passcode Access (Shared Cloud)"
+        session["user_label"] = "Personal Cloud (Owner)"
         return jsonify({"success": True})
 
     remaining = record_failed_attempt(ip)
@@ -163,62 +145,11 @@ def auth_passcode():
 
     return jsonify({
         "success": False,
-        "error": f"Invalid passcode. ({remaining} attempt(s) remaining before 15-minute lockout)"
+        "error": f"Incorrect passcode. ({remaining} attempt(s) remaining before 15-minute lockout)"
     }), 401
-
-@app.route("/auth/login", methods=["POST"])
-def auth_login():
-    ip = get_client_ip()
-    locked_for = check_rate_limit(ip)
-    if locked_for:
-        return jsonify({
-            "success": False,
-            "error": f"Too many failed attempts. Locked out for {locked_for // 60 + 1} more minute(s)."
-        }), 429
-
-    data = request.get_json(silent=True) or {}
-    email = data.get("email", "").strip()
-    password = data.get("password", "")
-
-    if not email or not password:
-        return jsonify({"success": False, "error": "Email and password are required"}), 400
-
-    try:
-        # Validate credentials with SeedrClient
-        client = SeedrClient.from_password(email, password)
-        user_clients[email] = client
-        reset_failed_attempts(ip)
-
-        session.clear()
-        session["logged_in"] = True
-        session["auth_type"] = "user"
-        session["email"] = email
-        session["password"] = password
-        session["user_label"] = email
-        return jsonify({"success": True})
-    except AuthenticationError as e:
-        remaining = record_failed_attempt(ip)
-        if remaining == 0:
-            return jsonify({
-                "success": False,
-                "error": "Too many failed attempts. You have been locked out for 15 minutes."
-            }), 429
-        return jsonify({
-            "success": False,
-            "error": f"Invalid Seedr credentials ({remaining} attempt(s) remaining before 15-minute lockout)"
-        }), 401
-    except Exception as e:
-        return jsonify({"success": False, "error": f"Login failed: {e}"}), 500
 
 @app.route("/logout")
 def logout():
-    email = session.get("email")
-    if email and email in user_clients:
-        try:
-            user_clients[email].close()
-        except Exception:
-            pass
-        del user_clients[email]
     session.clear()
     return redirect(url_for("login_page"))
 
@@ -227,20 +158,19 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    return render_template("index.html", user_label=session.get("user_label", "Active User"))
+    return render_template("index.html", user_label=session.get("user_label", "Personal Cloud"))
 
 @app.route("/api/status")
 @login_required
 def get_status():
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         quota = client.get_quota()
         return jsonify({
             "success": True,
-            "user_label": session.get("user_label", "Connected"),
-            "auth_type": session.get("auth_type", "guest"),
+            "user_label": session.get("user_label", "Personal Cloud"),
             "space_used": quota.space_used,
             "space_max": quota.space_max,
             "bandwidth_used": quota.bandwidth_used,
@@ -254,9 +184,9 @@ def get_status():
 @app.route("/api/folder/<int:folder_id>")
 @login_required
 def get_folder(folder_id):
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         folder = client.get_folder(folder_id)
         return jsonify({
@@ -309,9 +239,9 @@ def get_folder(folder_id):
 @app.route("/api/torrent/add", methods=["POST"])
 @login_required
 def add_torrent():
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         folder_id = int(request.form.get("folder_id", 0))
 
@@ -336,9 +266,9 @@ def add_torrent():
 @app.route("/api/file/<int:file_id>/url")
 @login_required
 def get_file_url(file_id):
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         link = client.get_file_url(file_id)
         return jsonify({"success": True, "url": link.url, "name": link.name})
@@ -350,9 +280,9 @@ def get_file_url(file_id):
 @app.route("/api/file/<int:file_id>/stream")
 @login_required
 def get_file_stream(file_id):
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         stream = client.get_video_stream(file_id)
         return jsonify({
@@ -368,9 +298,9 @@ def get_file_stream(file_id):
 @app.route("/api/folder/<int:folder_id>/zip")
 @login_required
 def get_folder_zip(folder_id):
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         archive = client.get_folder_zip_url(folder_id)
         return jsonify({"success": True, "url": archive.url, "archive_id": archive.archive_id})
@@ -380,9 +310,9 @@ def get_folder_zip(folder_id):
 @app.route("/api/task/<int:task_id>/cancel", methods=["POST"])
 @login_required
 def cancel_task(task_id):
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         res = client.cancel_task(task_id)
         return jsonify({"success": True, "result": res})
@@ -392,9 +322,9 @@ def cancel_task(task_id):
 @app.route("/api/item/delete", methods=["POST"])
 @login_required
 def delete_item():
-    client = get_current_client()
+    client = get_client()
     if not client:
-        return jsonify({"success": False, "error": "Session expired"}), 401
+        return jsonify({"success": False, "error": "Seedr client disconnected"}), 500
     try:
         item_type = request.form.get("type")
         item_id = int(request.form.get("id"))
@@ -408,5 +338,5 @@ def delete_item():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    print(f"Starting Seedr WebApp on http://127.0.0.1:{port}")
+    print(f"Starting Personal Seedr WebApp on http://127.0.0.1:{port}")
     app.run(host="0.0.0.0", port=port, debug=False)
