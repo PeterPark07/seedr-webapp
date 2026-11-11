@@ -289,6 +289,95 @@
             text-decoration: underline;
         }
 
+        /* Quick Links Toolbar */
+        .quick-links-bar {
+            margin-top: 0.95rem;
+            padding-top: 0.85rem;
+            border-top: 1px dashed var(--border-subtle);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            font-size: 0.78rem;
+        }
+
+        .quick-links-title {
+            color: var(--text-muted);
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-right: 0.2rem;
+            user-select: none;
+        }
+
+        .quick-links-list {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
+        .quick-link-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.65rem;
+            background: #ffffff;
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            color: var(--text-body);
+            text-decoration: none;
+            font-size: 0.76rem;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+
+        .quick-link-pill:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+            transform: translateY(-1px);
+        }
+
+        .quick-link-del {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            margin-left: 2px;
+            cursor: pointer;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            transition: all 0.1s;
+        }
+
+        .quick-link-del:hover {
+            background: var(--danger-light);
+            color: var(--danger);
+        }
+
+        .quick-link-add {
+            border: 1px dashed var(--border-strong);
+            color: var(--primary);
+            background: transparent;
+            cursor: pointer;
+            border-radius: 20px;
+            padding: 0.3rem 0.65rem;
+            font-size: 0.76rem;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .quick-link-add:hover {
+            background: var(--primary-light);
+            border-style: solid;
+            border-color: var(--primary);
+        }
+
         /* Active Tasks */
         #active-tasks-container {
             display: none;
@@ -630,6 +719,12 @@
                 <span>Or upload a local file:</span>
                 <input type="file" id="torrent-file" accept=".torrent" style="display:none;" onchange="uploadTorrentFile(event)">
                 <label for="torrent-file">Browse .torrent</label>
+            </div>
+            <!-- Quick Search Sites -->
+            <div class="quick-links-bar">
+                <span class="quick-links-title">🔍 Quick Search:</span>
+                <div id="quick-links-container" class="quick-links-list"></div>
+                <button type="button" class="quick-link-add" onclick="promptAddQuickLink()" title="Add your favorite search site">+ Add Site</button>
             </div>
         </form>
     </div>
@@ -1081,7 +1176,77 @@
         }
     }
 
+    // --- Quick Search Links ---
+    const defaultSearchLinks = [
+        { name: "Archive.org", url: "https://archive.org/details/movies", icon: "🏛️" },
+        { name: "Academic Torrents", url: "https://academictorrents.com/browse.php", icon: "📚" },
+        { name: "LinuxTracker", url: "https://linuxtracker.org/", icon: "🐧" }
+    ];
+
+    function loadQuickLinks() {
+        let saved = null;
+        try {
+            const raw = localStorage.getItem('seedr_quick_links');
+            if (raw) saved = JSON.parse(raw);
+        } catch (e) {}
+
+        const links = (saved && Array.isArray(saved) && saved.length > 0) ? saved : defaultSearchLinks;
+        const container = document.getElementById('quick-links-container');
+        if (!container) return;
+
+        container.innerHTML = links.map((link, idx) => `
+            <a href="${link.url}" target="_blank" rel="noopener noreferrer" class="quick-link-pill" title="Open ${link.name} in a new tab">
+                <span>${link.icon || '🌐'}</span>
+                <span>${link.name}</span>
+                <span class="quick-link-del" onclick="removeQuickLink(event, ${idx})" title="Remove link">&times;</span>
+            </a>
+        `).join('');
+    }
+
+    function promptAddQuickLink() {
+        const name = prompt("Enter site name (e.g. 1337x, TorrentGalaxy):");
+        if (!name || !name.trim()) return;
+        let url = prompt("Enter site URL (e.g. https://1337x.to):");
+        if (!url || !url.trim()) return;
+
+        url = url.trim();
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+
+        let saved = [];
+        try {
+            const raw = localStorage.getItem('seedr_quick_links');
+            if (raw) saved = JSON.parse(raw);
+            if (!saved || !Array.isArray(saved) || saved.length === 0) saved = [...defaultSearchLinks];
+        } catch (e) {
+            saved = [...defaultSearchLinks];
+        }
+
+        saved.push({ name: name.trim(), url: url, icon: "🌐" });
+        localStorage.setItem('seedr_quick_links', JSON.stringify(saved));
+        loadQuickLinks();
+    }
+
+    function removeQuickLink(e, idx) {
+        e.preventDefault();
+        e.stopPropagation();
+        let saved = [];
+        try {
+            const raw = localStorage.getItem('seedr_quick_links');
+            if (raw) saved = JSON.parse(raw);
+            if (!saved || !Array.isArray(saved) || saved.length === 0) saved = [...defaultSearchLinks];
+        } catch (e) {
+            saved = [...defaultSearchLinks];
+        }
+
+        saved.splice(idx, 1);
+        localStorage.setItem('seedr_quick_links', JSON.stringify(saved));
+        loadQuickLinks();
+    }
+
     // Startup
+    loadQuickLinks();
     loadQuota();
     loadFolder(0, 'Home');
 </script>
